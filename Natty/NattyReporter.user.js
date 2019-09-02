@@ -22,8 +22,8 @@ if (typeof GM_xmlhttpRequest === 'function') {
 
 function sendChatMessage(msg, answerId) {
   GM.xmlHttpRequest({
-    method: 'GET', 
-    url: 'https://chat.stackoverflow.com/rooms/' + room, 
+    method: 'GET',
+    url: 'https://chat.stackoverflow.com/rooms/' + room,
     onload: function (response) {
       var fkey = response.responseText.match(/hidden" value="([\dabcdef]{32})/)[1];
       GM.xmlHttpRequest({
@@ -42,7 +42,7 @@ function sendChatMessage(msg, answerId) {
 function sendSentinelAndChat(answerId, feedback) {
   var link = 'https://stackoverflow.com/a/' + answerId;
   GM.xmlHttpRequest({
-    method: 'GET', 
+    method: 'GET',
     url: 'http://logs.sobotics.org/napi/api/feedback/' + answerId,
     onload: function (samserverResponse) {
       if (samserverResponse.status !== 200) {
@@ -105,7 +105,7 @@ const ScriptToInject = function() {
       open.apply(this, arguments);
     };
   };
-  
+
   function reportToNatty(e) {
     e.preventDefault();
     var $this = $(this);
@@ -114,30 +114,30 @@ const ScriptToInject = function() {
     var feedback = $this.text();
     window.postMessage(JSON.stringify(['postHrefReportNatty', postId, feedback]), "*");
   }
-    
+
   function shortcutClicked(e) {
-    
+
     var comments = {
       'link-only':
-        'A link to a solution is welcome, but please ensure your answer is useful without it: ' + 
+        'A link to a solution is welcome, but please ensure your answer is useful without it: ' +
         '[add context around the link](//meta.stackexchange.com/a/8259) so your fellow users will ' +
-        'have some idea what it is and why it’s there, then quote the most relevant part of the ' + 
+        'have some idea what it is and why it’s there, then quote the most relevant part of the ' +
         'page you\'re linking to in case the target page is unavailable. ' +
         '[Answers that are little more than a link may be deleted.](/help/deleted-answers)',
       'naa <50':
         'This does not provide an answer to the question. You can [search for similar questions](//stackoverflow.com/search), ' +
         'or refer to the related and linked questions on the right-hand side of the page to find an answer. ' +
-        'If you have a related but different question, [ask a new question](/questions/ask), ' + 
+        'If you have a related but different question, [ask a new question](/questions/ask), ' +
         'and include a link to this one to help provide context. ' +
         'See: [Ask questions, get answers, no distractions](/tour)',
       'naa >50':
         'This post doesn\'t look like an attempt to answer this question. Every post here is expected to be ' +
         'an explicit attempt to *answer* this question; if you have a critique or need a clarification of ' +
-        'the question or another answer, you can [post a comment](/help/privileges/comment) ' + 
+        'the question or another answer, you can [post a comment](/help/privileges/comment) ' +
         '(like this one) directly below it. Please remove this answer and create either a comment or a new question. ' +
         'See: [Ask questions, get answers, no distractions](/tour)',
       'thanks <15':
-        'Please don\'t add _"thanks"_ as answers. They don\'t actually provide an answer to the question, ' + 
+        'Please don\'t add _"thanks"_ as answers. They don\'t actually provide an answer to the question, ' +
         'and can be perceived as noise by its future visitors. Once you [earn](//meta.stackoverflow.com/q/146472) ' +
         'enough [reputation](/help/whats-reputation), you will gain privileges to ' +
         '[upvote answers](/help/privileges/vote-up) you like. This way future visitors of the question ' +
@@ -159,11 +159,11 @@ const ScriptToInject = function() {
       'lib':
         'Please don\'t just post some tool or library as an answer. At least demonstrate [how it solves the problem](//meta.stackoverflow.com/a/251605) in the answer itself.'
     };
-      
+
     e.preventDefault();
     var postID = $(this).closest('div.post-menu').find('a.js-share-link').attr('href').split('/')[2];
     var whichFeedback = $(this).text();
-    
+
     //flag the post (and report to Natty)
     if (whichFeedback == 'link-only' || whichFeedback == 'lib') {
       $.post('//stackoverflow.com/flags/posts/' + postID + '/add/PostLowQuality', {'fkey': StackExchange.options.user.fkey, 'otherText': ''},
@@ -202,7 +202,7 @@ const ScriptToInject = function() {
         }
       }
       var comment = comments[whichFeedback];
-      $.post('//stackoverflow.com/posts/' + postID + '/comments', {'fkey': StackExchange.options.user.fkey, 'comment': comment}, 
+      $.post('//stackoverflow.com/posts/' + postID + '/comments', {'fkey': StackExchange.options.user.fkey, 'comment': comment},
         function(data, textStatus, jqXHR) {
           var commentUI = StackExchange.comments.uiForPost($('#comments-' + postID));
           commentUI.addShow(true, false);
@@ -238,7 +238,7 @@ const ScriptToInject = function() {
       }
     }
   });
-  
+
   //Flags
   addXHRListener(function(xhr) {
     let matches = /flags\/posts\/(\d+)\/add\/(AnswerNotAnAnswer|PostLowQuality)/.exec(xhr.responseURL);
@@ -246,7 +246,7 @@ const ScriptToInject = function() {
       window.postMessage(JSON.stringify(['postHrefReportNatty', matches[1], 'tp']), "*");
     }
   });
-  
+
   //LQPRQ
   addXHRListener(function(xhr) {
     let matches = /(\d+)\/recommend-delete/.exec(xhr.responseURL);
@@ -256,7 +256,7 @@ const ScriptToInject = function() {
   });
 
   $(document).ready(function() {
-    handleAnswers(); 
+    handleAnswers();
   });
 };
 
