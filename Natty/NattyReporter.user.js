@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Natty Reporter
 // @namespace    https://github.com/Tunaki/stackoverflow-userscripts
-// @version      0.29
+// @version      0.3
 // @description  Adds a Natty link below answers that sends a report for the bot in SOBotics. Intended to be used to give feedback on reports (true positive / false positive / needs edit) or report NAA/VLQ-flaggable answers.
 // @author       Tunaki
 // @include      /^https?:\/\/(www\.)?stackoverflow\.com\/.*/
@@ -12,6 +12,7 @@
 // ==/UserScript==
 
 var room = 111347;
+const SE_API_key = 'qhq7Mdy8)4lSXLCjrzQFaQ((';
 
 if (typeof GM !== 'object') {
   GM = {};
@@ -69,29 +70,43 @@ function sendRequest(event) {
   } catch (zError) { }
   if (!messageJSON) return;
   if (messageJSON[0] == 'postHrefReportNatty') {
-    $.get('//api.stackexchange.com/2.2/posts/'+messageJSON[1]+'?site=stackoverflow&key=qhq7Mdy8)4lSXLCjrzQFaQ((&filter=!3tz1WbZYQxC_IUm7Z', function(aRes) {
-      // post is deleted, just report it (it can only be an answer since VLQ-flaggable question are only from review, thus not deleted), otherwise, check that it is really an answer and then its date
-      if (aRes.items.length === 0) {
-        sendSentinelAndChat(messageJSON[1], messageJSON[2]);
-      } else if (aRes.items[0]['post_type'] === 'answer') {
-        var answerDate = aRes.items[0]['creation_date'];
-        var currentDate = Date.now() / 1000;
-        // only do something when answer was less than 30 days ago, after which Natty reports age away
-        if (Math.round((currentDate - answerDate) / (24 * 60 * 60)) <= 30) {
-          $.get('//api.stackexchange.com/2.2/answers/'+messageJSON[1]+'/questions?site=stackoverflow&key=qhq7Mdy8)4lSXLCjrzQFaQ((&filter=!)8aBxR_Gih*BsCr', function(qRes) {
-            var questionDate = qRes.items[0]['creation_date'];
-            // only do something when answer was posted at least 30 days after the question
-            if (Math.round((answerDate - questionDate) / (24 * 60 * 60)) >= 30) {
-              sendSentinelAndChat(messageJSON[1], messageJSON[2]);
-            } else {
-              $('[data-answerid="' + messageJSON[1] + '"] a.report-natty-link').addClass('natty-reported').html('Not a late answer.');
-            }
-          });
-        } else {
-          $('[data-answerid="' + messageJSON[1] + '"] a.report-natty-link').addClass('natty-reported').html('Answer too old.');
+    $.get(
+      '//api.stackexchange.com/2.2/posts/' + messageJSON[1],
+      {
+        'site': 'stackoverflow',
+        'key': SE_API_key,
+        'filter': '!3tz1WbZYQxC_IUm7Z',
+      }, aRes => {
+        // post is deleted, just report it (it can only be an answer since VLQ-flaggable question are only from review, thus not deleted), otherwise, check that it is really an answer and then its date
+        if (aRes.items.length === 0) {
+          sendSentinelAndChat(messageJSON[1], messageJSON[2]);
+        } else if (aRes.items[0].post_type === 'answer') {
+          var answerDate = aRes.items[0].creation_date;
+          var currentDate = Date.now() / 1000;
+          // only do something when answer was less than 30 days ago, after which Natty reports age away
+          if (Math.round((currentDate - answerDate) / (24 * 60 * 60)) <= 30) {
+            $.get(
+              '//api.stackexchange.com/2.2/answers/' + messageJSON[1] + '/questions',
+              {
+                'site': 'stackoverflow',
+                'key': SE_API_key,
+                'filter': '!)8aBxR_Gih*BsCr',
+              }, qRes => {
+                var questionDate = qRes.items[0].creation_date;
+                // only do something when answer was posted at least 30 days after the question
+                if (Math.round((answerDate - questionDate) / (24 * 60 * 60)) >= 30) {
+                  sendSentinelAndChat(messageJSON[1], messageJSON[2]);
+                } else {
+                  $('[data-answerid="' + messageJSON[1] + '"] a.report-natty-link').addClass('natty-reported').html('Not a late answer.');
+                }
+              }
+            );
+          } else {
+            $('[data-answerid="' + messageJSON[1] + '"] a.report-natty-link').addClass('natty-reported').html('Answer too old.');
+          }
         }
       }
-    });
+    );
   }
 };
 
@@ -166,50 +181,70 @@ const ScriptToInject = function() {
 
     //flag the post (and report to Natty)
     if (whichFeedback == 'link-only' || whichFeedback == 'lib') {
-      $.post('//stackoverflow.com/flags/posts/' + postID + '/add/PostLowQuality', {'fkey': StackExchange.options.user.fkey, 'otherText': ''},
-             function (response) {
-        if (!response['Success']) {
-          alert('Post could not be flagged VLQ');
+      $.post(
+        '//stackoverflow.com/flags/posts/' + postID + '/add/PostLowQuality',
+        {
+          'fkey': StackExchange.options.user.fkey,
+          'otherText': ''
+        }, response => {
+          if (!response.Success) {
+            alert('Post could not be flagged VLQ');
+          }
         }
-      });
+      );
     } else {
-      $.post('//stackoverflow.com/flags/posts/' + postID + '/add/AnswerNotAnAnswer', {'fkey': StackExchange.options.user.fkey, 'otherText': ''});
+      $.post(
+        '//stackoverflow.com/flags/posts/' + postID + '/add/AnswerNotAnAnswer',
+        {
+          'fkey': StackExchange.options.user.fkey,
+          'otherText': ''
+        }
+      );
     }
 
     //add a comment
-    $.get('//api.stackexchange.com/2.2/answers/'+postID+'?site=stackoverflow&key=qhq7Mdy8)4lSXLCjrzQFaQ((', function(aRes) {
-      if (aRes.items.length === 0) {
-        // Post deleted, nothing to do
-        return;
-      }
-      if (aRes.items[0]['user_type'] == 'does_not_exist') {
-        // User deleted, no comment needed
-        return;
-      }
-      if (whichFeedback == 'naa') {
-        // Pick the correct comment to post
-        if (aRes.items[0]['owner']['reputation'] < 50) {
-          whichFeedback = 'naa <50';
-        } else {
-          whichFeedback = 'naa >50';
+    $.get(
+      '//api.stackexchange.com/2.2/answers/' + postID,
+      {
+        'site': 'stackoverflow',
+        'key': SE_API_key,
+      }, aRes => {
+        if (aRes.items.length === 0) {
+          // Post deleted, nothing to do
+          return;
         }
-      }
-      if (whichFeedback == 'thanks') {
-        if (aRes.items[0]['owner']['reputation'] < 15) {
-          whichFeedback = 'thanks <15';
-        } else {
-          whichFeedback = 'thanks >15';
+        if (aRes.items[0].user_type == 'does_not_exist') {
+          // User deleted, no comment needed
+          return;
         }
-      }
-      var comment = aRes.items[0]['owner']['display_name'] + ', ' + comments[whichFeedback];
-      $.post('//stackoverflow.com/posts/' + postID + '/comments', {'fkey': StackExchange.options.user.fkey, 'comment': comment},
-             function(data, textStatus, jqXHR) {
-        var commentUI = StackExchange.comments.uiForPost($('#comments-' + postID));
-        commentUI.addShow(true, false);
-        commentUI.showComments(data, null, false, true);
-        $(document).trigger('comment', postID);
+        if (whichFeedback == 'naa') {
+          // Pick the correct comment to post
+          if (aRes.items[0].owner.reputation < 50) {
+            whichFeedback = 'naa <50';
+          } else {
+            whichFeedback = 'naa >50';
+          }
+        }
+        if (whichFeedback == 'thanks') {
+          if (aRes.items[0].owner.reputation < 15) {
+            whichFeedback = 'thanks <15';
+          } else {
+            whichFeedback = 'thanks >15';
+          }
+        }
+        var comment = aRes.items[0].owner.display_name + ', ' + comments[whichFeedback];
+        $.post(
+          '//stackoverflow.com/posts/' + postID + '/comments',
+          {
+            'fkey': StackExchange.options.user.fkey,
+            'comment': comment
+          }, (data, textStatus, jqXHR) => {
+            var commentUI = StackExchange.comments.uiForPost($('#comments-' + postID));
+            commentUI.addShow(true, false);
+            commentUI.showComments(data, null, false, true);
+            $(document).trigger('comment', postID);
+          });
       });
-    });
   }
 
   function handleAnswers(postId) {
@@ -222,15 +257,48 @@ const ScriptToInject = function() {
     $posts.each(function() {
       var $this = $(this);
       $this.append($('<span>').attr('class', 'lsep').html('|'));
-      var $dropdown = $('<dl>').css({ 'margin': '0', 'z-index': '1', 'position': 'absolute', 'white-space': 'nowrap', 'background': '#FFF', 'padding': '2px', 'border': '1px solid #9fa6ad', 'box-shadow': '0 2px 4px rgba(36,39,41,0.3)', 'cursor': 'default' }).hide();
-      $.each(['tp', 'fp', 'ne'], function(i, val) { $dropdown.append($('<dd>').append($('<a>').css({ 'display': 'block', 'margin-top': '3px', 'width': 'auto' }).click(reportToNatty).text(val))); });
-      $dropdown.append($('<hr>').css({'margin-bottom': '6.5px'}));
-      $.each(['link-only', 'naa', 'lib', 'thanks', 'me too'], function(i, val) { $dropdown.append($('<dd>').append($('<a>').css({ 'display': 'block', 'margin-top': '3px', 'width': 'auto' }).click(shortcutClicked).text(val))); });
-      $this.append($('<a>').attr('class', 'report-natty-link').html('Natty').hover(function() { $dropdown.toggle(); }).append($dropdown));
+      console.log("Added; Reached L220");
+      var $dropdown = $('<dl>').css({
+        'margin': '0', 'z-index': '1',
+        'position': 'absolute',
+        'white-space': 'nowrap',
+        'background': '#FFF',
+        'padding': '2px',
+        'border': '1px solid #9fa6ad',
+        'box-shadow': '0 2px 4px rgba(36,39,41,0.3)',
+        'cursor': 'default'
+      }).hide();
+      $.each(['tp', 'fp', 'ne'], function(i, val) {
+        $dropdown.append($('<dd>').append(
+          $('<a>').css({
+            'display': 'block',
+            'margin-top': '3px',
+            'width': 'auto'
+          }).click(reportToNatty).text(val)))});
+      $dropdown.append($('<hr>').css({
+        'margin-bottom': '6.5px'
+      }));
+      $.each([
+        'link-only',
+        'naa',
+        'lib',
+        'thanks',
+        'me too'
+      ], function(i, val) {
+        $dropdown.append($('<dd>').append(
+          $('<a>').css({
+            'display': 'block',
+            'margin-top': '3px',
+            'width': 'auto'
+          }).click(shortcutClicked).text(val)));
+      });
+      $this.append($('<a>').attr('class', 'report-natty-link').html('Natty').hover(function() {
+        $dropdown.toggle();
+      }).append($dropdown));
     });
   };
 
-  addXHRListener(function(xhr) {
+  addXHRListener(xhr => {
     if (/ajax-load-realtime/.test(xhr.responseURL)) {
       let matches = /answer" data-answerid="(\d+)/.exec(xhr.responseText);
       if (matches !== null) {
@@ -240,7 +308,7 @@ const ScriptToInject = function() {
   });
 
   //Flags
-  addXHRListener(function(xhr) {
+  addXHRListener(xhr => {
     let matches = /flags\/posts\/(\d+)\/add\/(AnswerNotAnAnswer|PostLowQuality)/.exec(xhr.responseURL);
     if (matches !== null && xhr.status === 200) {
       window.postMessage(JSON.stringify(['postHrefReportNatty', matches[1], 'tp']), "*");
@@ -248,16 +316,20 @@ const ScriptToInject = function() {
   });
 
   //LQPRQ
-  addXHRListener(function(xhr) {
+  addXHRListener(xhr => {
     let matches = /(\d+)\/recommend-delete/.exec(xhr.responseURL);
     if (matches !== null && xhr.status === 200) {
       window.postMessage(JSON.stringify(['postHrefReportNatty', matches[1], 'tp']), "*");
     }
   });
 
+  //function observe(targets,elements,callback){if(!targets||(Array.isArray(targets)&&!targets.length))return;const observer=new MutationObserver(throttle(mutations=>{for(let i=0;i<mutations.length;i++) {const mutation=mutations[i];const target=mutation.target;const addedNodes=mutation.addedNodes;if(addedNodes){for(let n=0;n<addedNodes.length;n++){if($(addedNodes[n]).find(elements).length){callback(target);return;}}}if($(target).is(elements)){callback(target);return;}}},1500));if(Array.isArray(targets)){for(let i=0;i<targets.length;i++){const target=targets[i];if(!target)continue;observer.observe(target,{attributes:true,childList:true,characterData:true,subtree:true});}}else{observer.observe(targets,{attributes:true,childList:true,characterData:true,subtree:true});}}
   $(document).ready(function() {
     handleAnswers();
   });
+  //observe([...document.getElementsByClassName('post-layout')], '.answer', target => {
+  //handleAnswers();
+  //});
 };
 
 const ScriptToInjectNode = document.createElement('script');
