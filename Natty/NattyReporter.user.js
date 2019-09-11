@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Natty Reporter
 // @namespace    https://github.com/Tunaki/stackoverflow-userscripts
-// @version      0.31
+// @version      0.32
 // @description  Adds a Natty link below answers that sends a report for the bot in SOBotics. Intended to be used to give feedback on reports (true positive / false positive / needs edit) or report NAA/VLQ-flaggable answers.
 // @author       Tunaki
 // @include      /^https?:\/\/(www\.)?stackoverflow\.com\/.*/
@@ -11,8 +11,7 @@
 // @downloadURL  https://github.com/SOBotics/Userscripts/blob/master/Natty/NattyReporter.user.js
 // ==/UserScript==
 
-var room = 111347;
-const SE_API_key = 'qhq7Mdy8)4lSXLCjrzQFaQ((';
+const room = 111347;
 
 if (typeof GM !== 'object') {
   GM = {};
@@ -74,7 +73,7 @@ function sendRequest(event) {
       '//api.stackexchange.com/2.2/posts/' + messageJSON[1],
       {
         'site': 'stackoverflow',
-        'key': SE_API_key,
+        'key': 'qhq7Mdy8)4lSXLCjrzQFaQ((',
         'filter': '!3tz1WbZYQxC_IUm7Z',
       }, aRes => {
         // post is deleted, just report it (it can only be an answer since VLQ-flaggable question are only from review, thus not deleted), otherwise, check that it is really an answer and then its date
@@ -89,7 +88,7 @@ function sendRequest(event) {
               '//api.stackexchange.com/2.2/answers/' + messageJSON[1] + '/questions',
               {
                 'site': 'stackoverflow',
-                'key': SE_API_key,
+                'key': 'qhq7Mdy8)4lSXLCjrzQFaQ((',
                 'filter': '!)8aBxR_Gih*BsCr',
               }, qRes => {
                 var questionDate = qRes.items[0].creation_date;
@@ -207,7 +206,7 @@ const ScriptToInject = function() {
       '//api.stackexchange.com/2.2/answers/' + postID,
       {
         'site': 'stackoverflow',
-        'key': SE_API_key,
+        'key': 'qhq7Mdy8)4lSXLCjrzQFaQ((',
       }, aRes => {
         if (aRes.items.length === 0) {
           // Post deleted, nothing to do
@@ -290,13 +289,14 @@ const ScriptToInject = function() {
     }
   });
 
+  //function throttle(fn,countMax,time){let counter=0;setInterval(()=>{counter=0;},time);return function(){if(counter<countMax){counter++;fn.apply(this,arguments);}};}
   //function observe(targets,elements,callback){if(!targets||(Array.isArray(targets)&&!targets.length))return;const observer=new MutationObserver(throttle(mutations=>{for(let i=0;i<mutations.length;i++) {const mutation=mutations[i];const target=mutation.target;const addedNodes=mutation.addedNodes;if(addedNodes){for(let n=0;n<addedNodes.length;n++){if($(addedNodes[n]).find(elements).length){callback(target);return;}}}if($(target).is(elements)){callback(target);return;}}},1500));if(Array.isArray(targets)){for(let i=0;i<targets.length;i++){const target=targets[i];if(!target)continue;observer.observe(target,{attributes:true,childList:true,characterData:true,subtree:true});}}else{observer.observe(targets,{attributes:true,childList:true,characterData:true,subtree:true});}}
   $(document).ready(function() {
     handleAnswers();
   });
-  //observe([...document.getElementsByClassName('post-layout')], '.answer', target => {
-  //handleAnswers();
-  //});
+  /*observe([...document.getElementsByClassName('post-layout')], '.answer', target => {
+    handleAnswers();
+  });*/
 };
 
 const ScriptToInjectNode = document.createElement('script');
